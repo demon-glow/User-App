@@ -1,41 +1,67 @@
-var builder = WebApplication.CreateBuilder(args);
+using Microsoft.EntityFrameworkCore;
+using DotApp.Models;
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddDbContext<TestContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
+app.MapGet("/users/all", async (TestContext db) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    return await db.Users.ToListAsync();
+});
 
-app.MapGet("/weatherforecast", () =>
+app.MapPost("/users/add", async (User user, TestContext db) =>
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+    db.Users.Add(user);
+    await db.SaveChangesAsync();
+    return Results.Created($"/users/add/{user.UserId}", user);
+});
+
+app.MapDelete("/users/delete/{id}", async (int id, TestContext db) =>
+{
+    var user = await db.Users.FindAsync(id);
+    if (user == null) return Results.NotFound();
+    db.Users.Remove(user);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+});
+
+app.MapGet("/departments/all", async (TestContext db) =>
+{
+    return await db.Departments.ToListAsync();
+});
+
+app.MapPost("/departments/add", async (DepartmentDto departmentDto, TestContext db) =>
+{
+    var department = new Department 
+    { 
+        Code = departmentDto.Code, 
+        Name = departmentDto.Name 
+    };
+    db.Departments.Add(department);
+    await db.SaveChangesAsync();
+    return Results.Created($"/departments/add/{department.Code}", department);
+});
+
+app.MapDelete("/departments/delete/{id}", async (int id, TestContext db) =>
+{
+    var department = await db.Departments.FindAsync(id);
+    if (department == null) return Results.NotFound();
+    db.Departments.Remove(department);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+});
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
