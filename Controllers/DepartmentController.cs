@@ -35,7 +35,11 @@ public class DepartmentController : ControllerBase {
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteSingleDepartment(int id) {
         var department = await _context.Departments.FindAsync(id);
-        if (department==null) return NotFound();
+        if (department == null) return NotFound();
+
+        var hasUsers = await _context.Users.AnyAsync(u => u.Department == id);
+        if (hasUsers)
+            return BadRequest("Cannot delete department because users are assigned to it.");
 
         _context.Departments.Remove(department);
         await _context.SaveChangesAsync();
