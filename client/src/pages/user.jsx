@@ -2,17 +2,19 @@ import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import Button from "../components/button";
 import UserTable from "../components/user/user-table";
-import { ALL_USERS, ADD_NEW_USER, DELETE_USER } from "../config/api-constants";
+import { ALL_USERS, ADD_NEW_USER, DELETE_USER, EDIT_USER } from "../config/api-constants";
 
 function UserPage() {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
+    const [editingUser, setEditingUser] = useState(null);
     const [newUser, setNewUser] = useState({
         firstName: "",
         lastName: "",
         email: "",
         dob: "",
+        age: "",
         salary: "",
         department: "",
     });
@@ -37,7 +39,7 @@ function UserPage() {
 
     const handleAddUser = async (e) => {
         e.preventDefault();
-        const { firstName, lastName, email, dob, salary, department } = newUser;
+        const { firstName, lastName, email, dob, age, salary, department } = newUser;
         if (!firstName || !lastName || !email || !dob || !salary || !department) {
             return toast.error("All fields are required!");
         }
@@ -47,22 +49,66 @@ function UserPage() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    ...newUser,
-                    salary: parseFloat(newUser.salary),
+                    firstName: newUser.firstName,
+                    lastName: newUser.lastName,
+                    email: newUser.email,
+                    dob: newUser.dob,
+                    age: newUser.age ? parseInt(newUser.age) : null,
+                    salary: parseInt(newUser.salary),
+                    department: parseInt(newUser.department),
                 }),
             });
 
             if (response.ok) {
                 toast.success("User added successfully!");
-                setNewUser({ firstName: "", lastName: "", email: "", dob: "", salary: "", department: "" });
+                setNewUser({ firstName: "", lastName: "", email: "", dob: "", age: "", salary: "", department: "" });
                 setShowForm(false);
                 fetchUsers();
             } else {
-                toast.error("Failed to add user");
+                const errorText = await response.text();
+                toast.error(errorText || "Failed to add user");
             }
         } catch (error) {
             console.error("Error adding user:", error);
             toast.error("Error adding user");
+        }
+    };
+
+    const handleEditUser = async (e) => {
+        e.preventDefault();
+        const { firstName, lastName, email, dob, age, salary, department } = newUser;
+        if (!firstName || !lastName || !email || !dob || !salary || !department) {
+            return toast.error("All fields are required!");
+        }
+
+        try {
+            const response = await fetch(`${EDIT_USER}/${editingUser.userId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    firstName: newUser.firstName,
+                    lastName: newUser.lastName,
+                    email: newUser.email,
+                    dob: newUser.dob,
+                    age: newUser.age ? parseInt(newUser.age) : null,
+                    salary: parseInt(newUser.salary),
+                    department: parseInt(newUser.department),
+                }),
+            });
+
+            if (response.ok) {
+                toast.success("User updated successfully!");
+                setNewUser({ firstName: "", lastName: "", email: "", dob: "", age: "", salary: "", department: "" });
+                setShowForm(false);
+                setEditingUser(null);
+                fetchUsers();
+            } else {
+                const errorText = await response.text();
+                toast.error(errorText || "Failed to update user");
+            }
+        } catch (error) {
+            console.error("Error updating user:", error);
+            toast.error("Error updating user");
         }
     };
 
@@ -82,6 +128,26 @@ function UserPage() {
         }
     };
 
+    const startEdit = (user) => {
+        setEditingUser(user);
+        setNewUser({
+            firstName: user.firstName || "",
+            lastName: user.lastName || "",
+            email: user.email || "",
+            dob: user.dob || "",
+            age: user.age?.toString() || "",
+            salary: user.salary?.toString() || "",
+            department: user.department?.toString() || "",
+        });
+        setShowForm(true);
+    };
+
+    const cancelForm = () => {
+        setShowForm(false);
+        setEditingUser(null);
+        setNewUser({ firstName: "", lastName: "", email: "", dob: "", age: "", salary: "", department: "" });
+    };
+
     if (loading) return <div className="p-4">Loading...</div>;
 
     return (
@@ -90,13 +156,19 @@ function UserPage() {
                 <h2 className="text-lg font-semibold">USER MANAGEMENT</h2>
                 <Button
                     label={showForm ? "Cancel" : "Add New User"}
-                    onClick={() => setShowForm(!showForm)}
+                    onClick={() => (showForm ? cancelForm() : setShowForm(true))}
                     className="bg-teal-600 text-white"
                 />
             </div>
 
             {showForm && (
-                <form onSubmit={handleAddUser} className="mb-6 flex flex-wrap gap-2 items-center">
+                <form 
+                    onSubmit={editingUser ? handleEditUser : handleAddUser} 
+                    className="mb-6 flex flex-wrap gap-2 items-center bg-gray-50 p-4 rounded"
+                >
+                    <span className="w-full font-semibold text-md mb-2">
+                        {editingUser ? "Edit User:" : "Add New User:"}
+                    </span>
                     <input
                         type="text"
                         placeholder="First Name"
@@ -131,6 +203,13 @@ function UserPage() {
                     />
                     <input
                         type="number"
+                        placeholder="Age"
+                        value={newUser.age}
+                        onChange={(e) => setNewUser({ ...newUser, age: e.target.value })}
+                        className="border px-2 py-1 rounded w-20"
+                    />
+                    <input
+                        type="number"
                         placeholder="Salary"
                         value={newUser.salary}
                         onChange={(e) => setNewUser({ ...newUser, salary: e.target.value })}
@@ -138,20 +217,33 @@ function UserPage() {
                         required
                     />
                     <input
-                        type="text"
-                        placeholder="Department"
+                        type="number"
+                        placeholder="Department Code"
                         value={newUser.department}
                         onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
-                        className="border px-2 py-1 rounded"
+                        className="border px-2 py-1 rounded w-32"
                         required
                     />
                     <button type="submit" className="bg-teal-600 text-white px-4 py-1 rounded">
-                        Add
+                        {editingUser ? "Update" : "Add"}
                     </button>
+                    {editingUser && (
+                        <button 
+                            type="button" 
+                            onClick={cancelForm}
+                            className="bg-gray-500 text-white px-4 py-1 rounded"
+                        >
+                            Cancel Edit
+                        </button>
+                    )}
                 </form>
             )}
 
-            <UserTable data={users.map(u => ({ ...u, actions: () => handleDeleteUser(u.userId) }))} />
+            <UserTable 
+                data={users}
+                onDelete={handleDeleteUser}
+                onEdit={startEdit}
+            />
         </div>
     );
 }

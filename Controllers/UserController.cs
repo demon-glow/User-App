@@ -3,7 +3,7 @@ using DotApp.Models;
 using Microsoft.EntityFrameworkCore;
 
 [ApiController]
-[Route("api/[Controller]")]
+[Route("api/user")]
 public class UserController : ControllerBase 
 {
     private readonly TestContext _context;

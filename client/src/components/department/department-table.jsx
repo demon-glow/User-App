@@ -4,7 +4,7 @@ import { Pencil, Trash } from "lucide-react";
 import { DELETE_DEPARTMENT } from "../../config/api-constants";
 import toast from "react-hot-toast";
 
-function DepartmentTable({ data, onRefresh }) {
+function DepartmentTable({ data, onRefresh, onEdit }) {
     const handleDelete = async (code) => {
         if (window.confirm(`Are you sure you want to delete department ${code}?`)) {
             try {
@@ -16,7 +16,8 @@ function DepartmentTable({ data, onRefresh }) {
                     toast.success("Department deleted successfully!");
                     onRefresh();
                 } else {
-                    toast.error("Failed to delete department");
+                    const error = await response.text();
+                    toast.error(error || "Failed to delete department");
                 }
             } catch (error) {
                 toast.error("Error deleting department");
@@ -41,7 +42,7 @@ function DepartmentTable({ data, onRefresh }) {
                     <div className="flex gap-3">
                         <button
                             className="text-teal-600 hover:text-teal-800"
-                            onClick={() => alert(`Edit ${row.original.code}`)}
+                            onClick={() => onEdit(row.original)}
                         >
                             <Pencil size={18} />
                         </button>
@@ -55,7 +56,7 @@ function DepartmentTable({ data, onRefresh }) {
                 ),
             },
         ],
-        []
+        [onEdit]
     );
 
     const table = useReactTable({

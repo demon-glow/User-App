@@ -3,7 +3,7 @@ using DotApp.Models;
 using Microsoft.EntityFrameworkCore;
 
 [ApiController]
-[Route("api/[Controller]")]
+[Route("api/department")] 
 public class DepartmentController : ControllerBase 
 {
     private readonly TestContext _context;
@@ -45,7 +45,7 @@ public class DepartmentController : ControllerBase
     }
     
     [HttpPut("{id}")]
-    public async Task<IActionResult> EditDepartment(int id, EditDepartmentDto dto)
+    public async Task<IActionResult> EditDepartment(int id, DepartmentDto dto)
     {
         var department = await _context.Departments.FindAsync(id);
         if (department == null)
